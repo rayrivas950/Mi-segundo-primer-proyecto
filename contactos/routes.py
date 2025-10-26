@@ -28,7 +28,7 @@ def crear():
 
     conn.commit()
     cur.close()
-    return {"message": "Contacto creado"}, 201
+    return {"message": "Contacto creado", "id": cid}, 201
 
 
 @contactos_bp.get('/')

@@ -4,10 +4,12 @@ from db import get_db_connection
 import jwt
 from datetime import datetime, timedelta
 from config import Config
+from extensions import limiter
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.post('/register')
+@limiter.limit("5 per hour")
 def register():
     data = request.json
     username = data["username"]
@@ -24,6 +26,7 @@ def register():
         cur.close()
 
 @auth_bp.post('/login')
+@limiter.limit("10 per minute")
 def login():
     data = request.json
     username = data["username"]

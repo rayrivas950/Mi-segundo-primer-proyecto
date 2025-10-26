@@ -2,3 +2,6 @@ Flask
 psycopg2-binary
 PyJWT
 python-dotenv
+pytest
+pytest-flask
+Flask-Limiter[redis]

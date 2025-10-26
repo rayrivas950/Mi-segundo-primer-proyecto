@@ -8,6 +8,7 @@ This is the backend for a contact management web application, built with Flask, 
 *   Contact management (create, read, update, delete)
 *   Search contacts by name, phone, or email
 *   Contacts are associated with users
+*   **Rate Limiting:** Implemented on authentication endpoints to prevent brute-force attacks.
 
 ## Setup
 
@@ -39,6 +40,9 @@ This is the backend for a contact management web application, built with Flask, 
 5.  **Database Setup:**
     The application will automatically create the necessary tables when it starts. Ensure your PostgreSQL server is running and accessible with the credentials provided in `.env`.
 
+6.  **Redis Setup:**
+    For rate limiting functionality, a Redis server is required. Ensure Redis is running and accessible at `localhost:6379`.
+
 ## Running the Application
 
 ```bash
@@ -47,6 +51,18 @@ FLASK_APP=app.py flask run
 ```
 
 The API will be available at `http://127.0.0.1:5000`.
+
+**Important:** For production deployments, ensure your application is served over HTTPS to protect sensitive data in transit.
+
+## Testing
+
+To run the automated tests:
+
+```bash
+source venv/bin/activate
+export PYTHONPATH=$(pwd) # Or the absolute path to your project root
+pytest
+```
 
 ## API Endpoints
 
@@ -82,6 +98,7 @@ Este es el backend para una aplicación web de gestión de contactos, construida
 *   Gestión de contactos (crear, leer, actualizar, eliminar)
 *   Búsqueda de contactos por nombre, teléfono o correo electrónico
 *   Los contactos están asociados a los usuarios
+*   **Limitación de Tasas:** Implementada en los endpoints de autenticación para prevenir ataques de fuerza bruta.
 
 ## Configuración
 
@@ -113,6 +130,9 @@ Este es el backend para una aplicación web de gestión de contactos, construida
 5.  **Configuración de la Base de Datos:**
     La aplicación creará automáticamente las tablas necesarias cuando se inicie. Asegúrate de que tu servidor PostgreSQL esté funcionando y sea accesible con las credenciales proporcionadas en `.env`.
 
+6.  **Configuración de Redis:**
+    Para la funcionalidad de limitación de tasas, se requiere un servidor Redis. Asegúrate de que Redis esté funcionando y sea accesible en `localhost:6379`.
+
 ## Ejecutar la Aplicación
 
 ```bash
@@ -121,6 +141,18 @@ FLASK_APP=app.py flask run
 ```
 
 La API estará disponible en `http://127.0.0.1:5000`.
+
+**Importante:** Para despliegues en producción, asegúrate de que tu aplicación se sirva a través de HTTPS para proteger los datos sensibles en tránsito.
+
+## Pruebas
+
+Para ejecutar las pruebas automatizadas:
+
+```bash
+source venv/bin/activate
+export PYTHONPATH=$(pwd) # O la ruta absoluta a la raíz de tu proyecto
+pytest
+```
 
 ## Endpoints de la API
 
