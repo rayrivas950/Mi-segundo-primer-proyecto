@@ -1,5 +1,5 @@
-# Contact Management Backend
 
+<<<<<<< HEAD
 This is the backend for a contact management web application, built with Flask, PostgreSQL, and JWT authentication.
 
 ## Features
@@ -215,3 +215,5 @@ Todos los endpoints de contactos requieren un **token de acceso** válido en el 
     *   Respuesta: `{"id": 1, "nombre": "Nuevo Nombre", ...}` (objeto de contacto actualizado serializado).
 *   **"DELETE /contactos/<id>"**: Eliminar un contacto.
     *   Respuesta: `{"message": "Contacto eliminado"}`.
+=======
+>>>>>>> 32388162f55a65b78f5f6691614adb674005f1f3
