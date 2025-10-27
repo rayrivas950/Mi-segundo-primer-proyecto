@@ -5,3 +5,8 @@ python-dotenv
 pytest
 pytest-flask
 Flask-Limiter[redis]
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Cors
+flask-marshmallow
+marshmallow-sqlalchemy

@@ -1,135 +1,85 @@
-from flask import Blueprint, request
-from db import get_db_connection
+from flask import Blueprint, request, jsonify
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
+from extensions import db
+from models import Contacto, Telefono, Email
 from .auth_guard import auth_required
+from .schemas import contacto_schema, contactos_schema # Import schemas
+from marshmallow import ValidationError # Import ValidationError
 
 contactos_bp = Blueprint('contactos', __name__, url_prefix='/contactos')
 
 @contactos_bp.post('/')
-def crear():
-    user_id = auth_required()
-    if not user_id:
-        return {"error": "Token inválido"}, 401
+@auth_required
+def crear(user_id):
+    try:
+        # Validate and deserialize input data into a Contacto instance
+        nuevo_contacto = contacto_schema.load(request.json)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
 
-    data = request.json
-    nombre = data["nombre"]
-    telefonos = data.get("telefonos", [])
-    emails = data.get("emails", [])
+    nuevo_contacto.user_id = user_id # Assign user_id from auth_required
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO contactos (user_id, nombre) VALUES (%s, %s) RETURNING id", (user_id, nombre))
-    cid = cur.fetchone()[0]
+    db.session.add(nuevo_contacto)
+    db.session.commit()
 
-    for t in telefonos:
-        cur.execute("INSERT INTO telefonos (contacto_id, telefono) VALUES (%s, %s)", (cid, t))
-
-    for e in emails:
-        cur.execute("INSERT INTO emails (contacto_id, email) VALUES (%s, %s)", (cid, e))
-
-    conn.commit()
-    cur.close()
-    return {"message": "Contacto creado", "id": cid}, 201
+    # Serialize the created contact for the response
+    return contacto_schema.dump(nuevo_contacto), 201
 
 
 @contactos_bp.get('/')
-def obtener_contactos():
-    user_id = auth_required()
-    if not user_id:
-        return {"error": "Token inválido"}, 401
-
+@auth_required
+def obtener_contactos(user_id):
     search_query = request.args.get("search")
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    query = Contacto.query.filter_by(user_id=user_id).options(
+        joinedload(Contacto.telefonos),
+        joinedload(Contacto.emails)
+    )
 
     if search_query:
         search_pattern = f"%{search_query}%"
-        cur.execute(
-            """SELECT DISTINCT c.id, c.nombre FROM contactos c
-            LEFT JOIN telefonos t ON c.id = t.contacto_id
-            LEFT JOIN emails e ON c.id = e.contacto_id
-            WHERE c.user_id = %s AND (c.nombre ILIKE %s OR t.telefono ILIKE %s OR e.email ILIKE %s)
-            ORDER BY c.nombre""",
-            (user_id, search_pattern, search_pattern, search_pattern)
-        )
-    else:
-        cur.execute("SELECT id, nombre FROM contactos WHERE user_id = %s ORDER BY nombre", (user_id,))
-    
-    contactos_db = cur.fetchall()
+        query = query.join(Contacto.telefonos, isouter=True).join(Contacto.emails, isouter=True).filter(
+            or_(
+                Contacto.nombre.ilike(search_pattern),
+                Telefono.telefono.ilike(search_pattern),
+                Email.email.ilike(search_pattern)
+            )
+        ).distinct()
 
-    contactos = []
-    for contacto_id, nombre in contactos_db:
-        cur.execute("SELECT telefono FROM telefonos WHERE contacto_id = %s", (contacto_id,))
-        telefonos = [t[0] for t in cur.fetchall()]
+    contactos_db = query.order_by(Contacto.nombre).all()
 
-        cur.execute("SELECT email FROM emails WHERE contacto_id = %s", (contacto_id,))
-        emails = [e[0] for e in cur.fetchall()]
+    # Serialize the list of contacts
+    return contactos_schema.dump(contactos_db), 200
 
-        contactos.append({
-            "id": contacto_id,
-            "nombre": nombre,
-            "telefonos": telefonos,
-            "emails": emails
-        })
-    
-    cur.close()
-    return {"contactos": contactos}
 
 @contactos_bp.put('/<int:contact_id>')
-def actualizar_contacto(contact_id):
-    user_id = auth_required()
-    if not user_id:
-        return {"error": "Token inválido"}, 401
+@auth_required
+def actualizar_contacto(user_id, contact_id):
+    contacto = Contacto.query.filter_by(id=contact_id, user_id=user_id).first_or_404(
+        description="Contacto no encontrado o no pertenece al usuario"
+    )
 
-    data = request.json
-    nombre = data.get("nombre")
-    telefonos = data.get("telefonos", [])
-    emails = data.get("emails", [])
+    try:
+        # Update the existing contact instance with validated data
+        # partial=True allows for partial updates (not all fields required)
+        updated_contacto = contacto_schema.load(request.json, instance=contacto, partial=True)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    db.session.commit()
+    # Serialize the updated contact for the response
+    return contacto_schema.dump(updated_contacto), 200
 
-    # Check if contact exists and belongs to the user
-    cur.execute("SELECT id FROM contactos WHERE id = %s AND user_id = %s", (contact_id, user_id))
-    if not cur.fetchone():
-        cur.close()
-        return {"error": "Contacto no encontrado o no pertenece al usuario"}, 404
-
-    # Update contact name
-    if nombre:
-        cur.execute("UPDATE contactos SET nombre = %s WHERE id = %s", (nombre, contact_id))
-
-    # Update phones (delete existing, insert new)
-    cur.execute("DELETE FROM telefonos WHERE contacto_id = %s", (contact_id,))
-    for t in telefonos:
-        cur.execute("INSERT INTO telefonos (contacto_id, telefono) VALUES (%s, %s)", (contact_id, t))
-
-    # Update emails (delete existing, insert new)
-    cur.execute("DELETE FROM emails WHERE contacto_id = %s", (contact_id,))
-    for e in emails:
-        cur.execute("INSERT INTO emails (contacto_id, email) VALUES (%s, %s)", (contact_id, e))
-
-    conn.commit()
-    cur.close()
-    return {"message": "Contacto actualizado"}, 200
 
 @contactos_bp.delete('/<int:contact_id>')
-def eliminar_contacto(contact_id):
-    user_id = auth_required()
-    if not user_id:
-        return {"error": "Token inválido"}, 401
+@auth_required
+def eliminar_contacto(user_id, contact_id):
+    contacto = Contacto.query.filter_by(id=contact_id, user_id=user_id).first_or_404(
+        description="Contacto no encontrado o no pertenece al usuario"
+    )
 
-    conn = get_db_connection()
-    cur = conn.cursor()
+    db.session.delete(contacto)
+    db.session.commit()
 
-    # Check if contact exists and belongs to the user
-    cur.execute("SELECT id FROM contactos WHERE id = %s AND user_id = %s", (contact_id, user_id))
-    if not cur.fetchone():
-        cur.close()
-        return {"error": "Contacto no encontrado o no pertenece al usuario"}, 404
-
-    cur.execute("DELETE FROM contactos WHERE id = %s", (contact_id,))
-    conn.commit()
-    cur.close()
     return {"message": "Contacto eliminado"}, 200
-

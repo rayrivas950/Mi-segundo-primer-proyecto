@@ -4,13 +4,16 @@ This is the backend for a contact management web application, built with Flask, 
 
 ## Features
 
-*   User authentication (register, login)
+*   User authentication (register, login, logout, refresh tokens)
 *   Contact management (create, read, update, delete)
 *   Search contacts by name, phone, or email
 *   Contacts are associated with users
 *   **Rate Limiting:** Implemented on authentication endpoints to prevent brute-force attacks.
+*   **Data Validation:** Input validation and output serialization using Marshmallow.
 
 ## Setup
+
+**Requires Python 3.9+**
 
 1.  **Clone the repository:**
     ```bash
@@ -21,6 +24,8 @@ This is the backend for a contact management web application, built with Flask, 
     ```bash
     python3 -m venv venv
     source venv/bin/activate
+    # To deactivate:
+    # deactivate
     ```
 3.  **Install dependencies:**
     ```bash
@@ -38,7 +43,11 @@ This is the backend for a contact management web application, built with Flask, 
     **Note:** Replace `your_very_strong_and_random_secret_key_here` with a strong, randomly generated key.
 
 5.  **Database Setup:**
-    The application will automatically create the necessary tables when it starts. Ensure your PostgreSQL server is running and accessible with the credentials provided in `.env`.
+    Ensure your PostgreSQL server is running.
+    Apply migrations to set up the database schema:
+    ```bash
+    FLASK_APP=app.py flask db upgrade
+    ```
 
 6.  **Redis Setup:**
     For rate limiting functionality, a Redis server is required. Ensure Redis is running and accessible at `localhost:6379`.
@@ -70,37 +79,51 @@ pytest
 
 *   **`POST /auth/register`**: Register a new user.
     *   Request Body: `{"username": "your_username", "password": "your_password"}`
-*   **`POST /auth/login`**: Log in and get a JWT token.
+    *   Response: `{"message": "Usuario creado"}` or `{"errors": {"username": ["Length validation failed"]}}` on error.
+*   **`POST /auth/login`**: Log in and get access and refresh tokens.
     *   Request Body: `{"username": "your_username", "password": "your_password"}`
-    *   Response: `{"token": "your_jwt_token"}`
+    *   Response: `{"access_token": "your_access_token", "refresh_token": "your_refresh_token"}`.
+*   **`POST /auth/logout`**: Invalidate the current access token.
+    *   Requires: Valid `Authorization: Bearer <access_token>` header.
+    *   Response: `{"message": "Sesión cerrada exitosamente"}`.
+*   **`POST /auth/refresh`**: Exchange a valid refresh token for new access and refresh tokens.
+    *   Request Body: `{"refresh_token": "your_refresh_token"}`
+    *   Response: `{"access_token": "new_access_token", "refresh_token": "new_refresh_token"}`.
 
 ### Contacts
 
-All contact endpoints require a valid JWT token in the `Authorization` header (e.g., `Authorization: Bearer <your_jwt_token>`).
+All contact endpoints require a valid **access token** in the `Authorization` header (e.g., `Authorization: Bearer <your_access_token>`).
 
 *   **`POST /contactos/`**: Create a new contact.
-    *   Request Body: `{"nombre": "Contact Name", "telefonos": ["123-456-7890"], "emails": ["email@example.com"]}`
+    *   Request Body: `{"nombre": "Contact Name", "telefonos": [{"telefono": "123-456-7890"}], "emails": [{"email": "email@example.com"}]}`
+    *   Response: `{"id": 1, "nombre": "Contact Name", ...}` (serialized contact object).
 *   **`GET /contactos/`**: Get all contacts for the authenticated user.
     *   Optional Query Parameter: `?search=keyword` (searches by name, phone, or email)
+    *   Response: `[...]` (list of serialized contact objects).
 *   **`PUT /contactos/<id>`**: Update an existing contact.
-    *   Request Body: `{"nombre": "New Name", "telefonos": ["new-phone"], "emails": ["new-email"]}`
+    *   Request Body: `{"nombre": "New Name", "telefonos": [{"telefono": "new-phone"}], "emails": [{"email": "new-email"}]}` (partial updates allowed).
+    *   Response: `{"id": 1, "nombre": "New Name", ...}` (serialized updated contact object).
 *   **`DELETE /contactos/<id>`**: Delete a contact.
+    *   Response: `{"message": "Contacto eliminado"}`.
 
 ---
 
 # Backend de Gestión de Contactos
 
-Este es el backend para una aplicación web de gestión de contactos, construida con Flask, PostgreSQL y autenticación JWT.
+Este es el backend para una aplicación web de gestión de contactos, construido con Flask, PostgreSQL y autenticación JWT.
 
 ## Características
 
-*   Autenticación de usuarios (registro, inicio de sesión)
+*   Autenticación de usuarios (registro, inicio de sesión, cierre de sesión, refresco de tokens)
 *   Gestión de contactos (crear, leer, actualizar, eliminar)
 *   Búsqueda de contactos por nombre, teléfono o correo electrónico
 *   Los contactos están asociados a los usuarios
 *   **Limitación de Tasas:** Implementada en los endpoints de autenticación para prevenir ataques de fuerza bruta.
+*   **Validación de Datos:** Validación de entrada y serialización de salida usando Marshmallow.
 
 ## Configuración
+
+**Requiere Python 3.9 o superior**
 
 1.  **Clonar el repositorio:**
     ```bash
@@ -111,6 +134,8 @@ Este es el backend para una aplicación web de gestión de contactos, construida
     ```bash
     python3 -m venv venv
     source venv/bin/activate
+    # Para desactivar:
+    # deactivate
     ```
 3.  **Instalar dependencias:**
     ```bash
@@ -128,7 +153,11 @@ Este es el backend para una aplicación web de gestión de contactos, construida
     **Nota:** Reemplaza `tu_clave_secreta_muy_fuerte_y_aleatoria_aqui` con una clave fuerte y generada aleatoriamente.
 
 5.  **Configuración de la Base de Datos:**
-    La aplicación creará automáticamente las tablas necesarias cuando se inicie. Asegúrate de que tu servidor PostgreSQL esté funcionando y sea accesible con las credenciales proporcionadas en `.env`.
+    Asegúrate de que tu servidor PostgreSQL esté funcionando.
+    Aplica las migraciones para configurar el esquema de la base de datos:
+    ```bash
+    FLASK_APP=app.py flask db upgrade
+    ```
 
 6.  **Configuración de Redis:**
     Para la funcionalidad de limitación de tasas, se requiere un servidor Redis. Asegúrate de que Redis esté funcionando y sea accesible en `localhost:6379`.
@@ -160,18 +189,29 @@ pytest
 
 *   **`POST /auth/register`**: Registrar un nuevo usuario.
     *   Cuerpo de la solicitud: `{"username": "tu_nombre_de_usuario", "password": "tu_contraseña"}`
-*   **`POST /auth/login`**: Iniciar sesión y obtener un token JWT.
+    *   Respuesta: `{"message": "Usuario creado"}` o `{"errors": {"username": ["La validación de longitud falló"]}}` en caso de error.
+*   **`POST /auth/login`**: Iniciar sesión y obtener tokens de acceso y refresco.
     *   Cuerpo de la solicitud: `{"username": "tu_nombre_de_usuario", "password": "tu_contraseña"}`
-    *   Respuesta: `{"token": "tu_token_jwt"}`
+    *   Respuesta: `{"access_token": "tu_token_de_acceso", "refresh_token": "tu_token_de_refresco"}`.
+*   **`POST /auth/logout`**: Invalidar el token de acceso actual.
+    *   Requiere: Encabezado `Authorization: Bearer <token_de_acceso>` válido.
+    *   Respuesta: `{"message": "Sesión cerrada exitosamente"}`.
+*   **`POST /auth/refresh`**: Intercambiar un token de refresco válido por nuevos tokens de acceso y refresco.
+    *   Cuerpo de la solicitud: `{"refresh_token": "tu_token_de_refresco"}`
+    *   Respuesta: `{"access_token": "nuevo_token_de_acceso", "refresh_token": "nuevo_token_de_refresco"}`.
 
 ### Contactos
 
-Todos los endpoints de contactos requieren un token JWT válido en el encabezado `Authorization` (por ejemplo, `Authorization: Bearer <tu_token_jwt>`).
+Todos los endpoints de contactos requieren un **token de acceso** válido en el encabezado `Authorization` (por ejemplo, `Authorization: Bearer <tu_token_de_acceso>`).
 
 *   **`POST /contactos/`**: Crear un nuevo contacto.
-    *   Cuerpo de la solicitud: `{"nombre": "Nombre del Contacto", "telefonos": ["123-456-7890"], "emails": ["correo@ejemplo.com"]}`
-*   **`GET /contactos/`**: Obtener todos los contactos del usuario autenticado.
+    *   Cuerpo de la solicitud: `{"nombre": "Nombre del Contacto", "telefonos": [{"telefono": "123-456-7890"}], "emails": [{"email": "correo@ejemplo.com"}]}`
+    *   Respuesta: `{"id": 1, "nombre": "Nombre del Contacto", ...}` (objeto de contacto serializado).
+*   **"GET /contactos/"**: Obtener todos los contactos del usuario autenticado.
     *   Parámetro de consulta opcional: `?search=palabra_clave` (busca por nombre, teléfono o correo electrónico)
-*   **`PUT /contactos/<id>`**: Actualizar un contacto existente.
-    *   Cuerpo de la solicitud: `{"nombre": "Nuevo Nombre", "telefonos": ["nuevo-telefono"], "emails": ["nuevo-correo"]}`
-*   **`DELETE /contactos/<id>`**: Eliminar un contacto.
+    *   Respuesta: `[...]` (lista de objetos de contacto serializados).
+*   **"PUT /contactos/<id>"**: Actualizar un contacto existente.
+    *   Cuerpo de la solicitud: `{"nombre": "Nuevo Nombre", "telefonos": [{"telefono": "nuevo-telefono"}], "emails": [{"email": "nuevo-correo"}]}` (se permiten actualizaciones parciales).
+    *   Respuesta: `{"id": 1, "nombre": "Nuevo Nombre", ...}` (objeto de contacto actualizado serializado).
+*   **"DELETE /contactos/<id>"**: Eliminar un contacto.
+    *   Respuesta: `{"message": "Contacto eliminado"}`.
