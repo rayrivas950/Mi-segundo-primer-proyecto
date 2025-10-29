@@ -14,7 +14,9 @@ class Contacto(db.Model):
     __tablename__ = 'contactos'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    nombre = db.Column(db.String(255), nullable=False)
+    nombre = db.Column(db.String(30), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.String(150), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     telefonos = db.relationship('Telefono', backref='contacto', lazy=True, cascade="all, delete-orphan")
     emails = db.relationship('Email', backref='contacto', lazy=True, cascade="all, delete-orphan")
@@ -29,4 +31,4 @@ class Email(db.Model):
     __tablename__ = 'emails'
     id = db.Column(db.Integer, primary_key=True)
     contacto_id = db.Column(db.Integer, db.ForeignKey('contactos.id'), nullable=False)
-    email = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(50), nullable=False)

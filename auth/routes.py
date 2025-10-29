@@ -21,7 +21,7 @@ def register():
     except ValidationError as err:
         return jsonify(err.messages), 400
 
-    username = data["username"]
+    username = data["username"].lower()
     password = generate_password_hash(data["password"])
 
     new_user = User(username=username, password=password)
@@ -42,7 +42,7 @@ def login():
     except ValidationError as err:
         return jsonify(err.messages), 400
 
-    username = data["username"]
+    username = data["username"].lower()
     password = data["password"]
 
     user = User.query.filter_by(username=username).first()
