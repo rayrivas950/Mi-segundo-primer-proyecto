@@ -15,7 +15,7 @@ class Contacto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     nombre = db.Column(db.String(30), nullable=False)
-    image_url = db.Column(db.String(255), nullable=True)
+    image_url = db.Column(db.String(2048), nullable=True)
     notes = db.Column(db.String(150), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     telefonos = db.relationship('Telefono', backref='contacto', lazy=True, cascade="all, delete-orphan")

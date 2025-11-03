@@ -9,6 +9,9 @@ class Config:
     DB_USER = os.getenv("DB_USER")
     DB_PASS = os.getenv("DB_PASS")
 
+    # Set testing mode based on environment variable
+    TESTING = os.getenv("FLASK_TESTING", "False").lower() in ("true", "1", "t")
+
     # SQLAlchemy configuration
     SQLALCHEMY_DATABASE_URI = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False

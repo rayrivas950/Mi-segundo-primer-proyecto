@@ -37,7 +37,11 @@ class ContactoSchema(ma.SQLAlchemyAutoSchema):
     
     emails = fields.Nested(EmailSchema, many=True)
     telefonos = fields.Nested(TelefonoSchema, many=True)
-    image_url = ma.auto_field(required=False, allow_none=True)
+    image_url = ma.auto_field(
+        required=False, 
+        allow_none=True, 
+        validate=validate.Length(max=2048, error="La URL de la imagen no puede tener más de 2048 caracteres.")
+    )
 
     class Meta:
         model = Contacto

@@ -41,7 +41,7 @@ const styles = {
   contactImage: {
     width: '100%',
     height: '180px',
-    objectFit: 'cover',
+    objectFit: 'contain',
     borderRadius: '4px',
     marginBottom: '15px'
   },

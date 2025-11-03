@@ -120,22 +120,22 @@ function ContactForm({ onContactSaved, existingContact }) {
       return;
     }
 
-    // Frontend email validation
-    const emailsToValidate = emails.filter(e => e.email.trim() !== '');
-    for (const emailObj of emailsToValidate) {
-      if (!isValidEmail(emailObj.email)) {
-        setError(`El email \'${emailObj.email}\' no tiene un formato válido.`);
-        return;
-      }
-    }
-
     const contactData = {
       nombre,
       image_url: imageUrl,
       notes,
-      telefonos: telefonos.filter(t => t.telefono.trim() !== ''), // Enviar solo teléfonos no vacíos
-      emails: emailsToValidate, // Ya validados
+      // Limpiar los IDs antes de enviar para evitar errores de validación de "Unknown field"
+      telefonos: telefonos.map(t => ({ telefono: t.telefono })).filter(t => t.telefono.trim() !== ''),
+      emails: emails.map(e => ({ email: e.email })).filter(e => e.email.trim() !== ''),
     };
+
+    // Frontend email validation
+    for (const emailObj of contactData.emails) {
+      if (!isValidEmail(emailObj.email)) {
+        setError(`El email '${emailObj.email}' no tiene un formato válido.`);
+        return;
+      }
+    }
 
     try {
       if (existingContact) {
@@ -147,12 +147,20 @@ function ContactForm({ onContactSaved, existingContact }) {
     } catch (err) {
       console.error('Error saving contact:', err);
       // Mejorar el manejo de errores para mostrar mensajes específicos del backend
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else if (err.response && err.response.data) {
-        // Si el error es un objeto de validación de Marshmallow
-        const errorMessages = Object.values(err.response.data).flat().join('; ');
-        setError(`Error de validación: ${errorMessages}`);
+      const extractErrorMessages = (errorData) => {
+        if (typeof errorData === 'string') {
+          return errorData;
+        } else if (Array.isArray(errorData)) {
+          return errorData.map(extractErrorMessages).join('; ');
+        } else if (typeof errorData === 'object') {
+          return Object.values(errorData).map(extractErrorMessages).join('; ');
+        }
+        return '';
+      };
+
+      if (err.response && err.response.data) {
+        const extracted = extractErrorMessages(err.response.data);
+        setError(`Error de validación: ${extracted || 'Hubo un error al guardar el contacto.'}`);
       } else if (typeof err === 'object') {
         setError(`Error inesperado: ${JSON.stringify(err)}`);
       } else {
